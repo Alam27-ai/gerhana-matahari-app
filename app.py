@@ -98,7 +98,7 @@ if uploaded_video and start_time_str and selected_stage != "":
                 current_class = model.names[int(best_box.cls)]
 
                 if current_class != prev_class:
-                    seconds_passed = frame_count / fps
+                    seconds_passed = round(frame_count / fps)
                     detection_time = start_time_delta + timedelta(seconds=seconds_passed)
                     detection_str = format_timestamp(detection_time)
 
