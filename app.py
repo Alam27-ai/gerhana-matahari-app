@@ -10,7 +10,7 @@ from ultralytics import YOLO
 # =====================
 @st.cache_resource
 def load_model():
-    model_path = r"C:\Users\ASUS\OneDrive\Dokumen\gerhana_matahari\best.pt"
+    model_path = "best.pt"
     model = YOLO(model_path)
     return model
 
