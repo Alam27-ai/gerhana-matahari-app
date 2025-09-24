@@ -10,7 +10,7 @@ from ultralytics import YOLO
 # =====================
 @st.cache_resource
 def load_model():
-    model_path = "best.pt"
+    model_path = "best.pt"   
     model = YOLO(model_path)
     return model
 
@@ -28,7 +28,7 @@ TAHAPAN = [
     "Akhir gerhana matahari sebagian"
 ]
 
-st.title("Pencatatan Waktu Tahapan Gerhana Matahari dari Video")
+st.title("🌑 Pencatatan Waktu Tahapan Gerhana Matahari dari Video")
 
 # =====================
 # Input user
@@ -38,7 +38,7 @@ selected_stage = st.selectbox("Pilih tahapan yang diharapkan dari potongan video
 start_time_str = st.text_input("Masukkan waktu awal video (contoh: 12:55, 1:02:05, atau 0:15)")
 
 # =====================
-# Fungsi parsing waktu
+# Fungsi parsing & format waktu
 # =====================
 def parse_time_string(time_str):
     parts = [int(p) for p in time_str.split(":")]
@@ -50,6 +50,12 @@ def parse_time_string(time_str):
         return timedelta(hours=parts[0], minutes=parts[1], seconds=parts[2])
     else:
         raise ValueError("Format waktu tidak valid")
+
+def format_timestamp(td: timedelta):
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 # =====================
 # Proses deteksi
@@ -68,7 +74,6 @@ if uploaded_video and start_time_str and selected_stage != "":
     cap = cv2.VideoCapture(temp_video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = total_frames / fps
 
     frame_count = 0
     prev_class = None
@@ -93,14 +98,15 @@ if uploaded_video and start_time_str and selected_stage != "":
                 current_class = model.names[int(best_box.cls)]
 
                 if current_class != prev_class:
-                    sseconds_passed = round(frame_count / fps)
+                    seconds_passed = round(frame_count / fps)
                     detection_time = start_time_delta + timedelta(seconds=seconds_passed)
+                    detection_str = format_timestamp(detection_time)
 
                     # Simpan frame
-                    img_filename = f"{current_class.replace(' ', '_')}_{str(detection_time).replace(':', '-')}.jpg"
+                    img_filename = f"{current_class.replace(' ', '_')}_{detection_str.replace(':', '-')}.jpg"
                     img_path = os.path.join(tempfile.gettempdir(), img_filename)
                     cv2.imwrite(img_path, frame)
-                    saved_images.append((current_class, str(detection_time), img_path))
+                    saved_images.append((current_class, detection_str, img_path))
 
                     prev_class = current_class
 
@@ -112,7 +118,7 @@ if uploaded_video and start_time_str and selected_stage != "":
 
     st.success("Deteksi selesai!")
 
-    st.write("### Gambar Tahapan Pertama Terdeteksi:")
+    st.write("### 📸 Gambar Tahapan Terdeteksi")
     for cls, ts, img_path in saved_images:
         st.write(f"🕒 **{ts}** - Deteksi: **{cls}**")
         st.image(img_path, caption=f"{cls} - {ts}", use_container_width=True)
@@ -125,7 +131,7 @@ if uploaded_video and start_time_str and selected_stage != "":
             )
 
     # =====================
-    # Tambahan: Kesimpulan Narasi
+    # Kesimpulan Narasi
     # =====================
     if saved_images:
         first_cls, first_ts, _ = saved_images[0]
