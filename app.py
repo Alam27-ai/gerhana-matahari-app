@@ -10,31 +10,32 @@ from ultralytics import YOLO
 # =====================
 @st.cache_resource
 def load_model():
-    model_path = "best.pt"   
+    model_path = "best.pt"
     model = YOLO(model_path)
     return model
 
 model = load_model()
 
 # =====================
-# Daftar kelas/tahapan
+# Aturan transisi → tahapan astronomi
 # =====================
-TAHAPAN = [
-    "Awal gerhana matahari sebagian",
-    "Awal gerhana matahari total",
-    "Awal gerhana matahari cincin",
-    "Akhir gerhana matahari cincin",
-    "Akhir gerhana matahari total",
-    "Akhir gerhana matahari sebagian"
-]
+TRANSITIONS = {
+    ("Sun", "Partial Solar Eclipse"): "Awal gerhana matahari sebagian",
+    ("Partial Solar Eclipse", "Sun"): "Akhir gerhana matahari sebagian",
 
-st.title("Pencatatan Waktu Tahapan Gerhana Matahari dari Video")
+    ("Partial Solar Eclipse", "Total Solar Eclipse"): "Awal gerhana matahari total",
+    ("Total Solar Eclipse", "Partial Solar Eclipse"): "Akhir gerhana matahari total",
+
+    ("Partial Solar Eclipse", "Annular Solar Eclipse"): "Awal gerhana matahari cincin",
+    ("Annular Solar Eclipse", "Partial Solar Eclipse"): "Akhir gerhana matahari cincin",
+}
+
+st.title("🌑 Pencatatan Waktu Tahapan Gerhana Matahari dari Video")
 
 # =====================
 # Input user
 # =====================
 uploaded_video = st.file_uploader("Upload potongan video", type=["mp4", "mov", "avi"])
-selected_stage = st.selectbox("Pilih tahapan yang diharapkan dari potongan video", [""] + TAHAPAN)
 start_time_str = st.text_input("Masukkan waktu awal video (contoh: 12:55, 1:02:05, atau 0:15)")
 
 # =====================
@@ -60,7 +61,7 @@ def format_timestamp(td: timedelta):
 # =====================
 # Proses deteksi
 # =====================
-if uploaded_video and start_time_str and selected_stage != "":
+if uploaded_video and start_time_str:
     try:
         start_time_delta = parse_time_string(start_time_str)
     except:
@@ -97,18 +98,22 @@ if uploaded_video and start_time_str and selected_stage != "":
                 best_box = boxes[boxes.conf.argmax()]
                 current_class = model.names[int(best_box.cls)]
 
-                if current_class != prev_class:
-                    seconds_passed = round(frame_count / fps)
-                    detection_time = start_time_delta + timedelta(seconds=seconds_passed)
-                    detection_str = format_timestamp(detection_time)
+                if current_class != prev_class and prev_class is not None:
+                    transition = (prev_class, current_class)
+                    if transition in TRANSITIONS:
+                        stage_name = TRANSITIONS[transition]
 
-                    # Simpan frame
-                    img_filename = f"{current_class.replace(' ', '_')}_{detection_str.replace(':', '-')}.jpg"
-                    img_path = os.path.join(tempfile.gettempdir(), img_filename)
-                    cv2.imwrite(img_path, frame)
-                    saved_images.append((current_class, detection_str, img_path))
+                        seconds_passed = round(frame_count / fps)
+                        detection_time = start_time_delta + timedelta(seconds=seconds_passed)
+                        detection_str = format_timestamp(detection_time)
 
-                    prev_class = current_class
+                        # Simpan frame
+                        img_filename = f"{stage_name.replace(' ', '_')}_{detection_str.replace(':', '-')}.jpg"
+                        img_path = os.path.join(tempfile.gettempdir(), img_filename)
+                        cv2.imwrite(img_path, frame)
+                        saved_images.append((stage_name, detection_str, img_path))
+
+                prev_class = current_class
 
         frame_count += 1
         progress_bar.progress(min(frame_count / total_frames, 1.0))
@@ -118,44 +123,29 @@ if uploaded_video and start_time_str and selected_stage != "":
 
     st.success("Deteksi selesai!")
 
-    st.write("### 📸 Gambar Tahapan Terdeteksi")
-    for cls, ts, img_path in saved_images:
-        st.write(f"🕒 **{ts}** - Deteksi: **{cls}**")
-        st.image(img_path, caption=f"{cls} - {ts}", use_container_width=True)
+    # =====================
+    # Output hasil
+    # =====================
+    st.write("### 📸 Tahapan Gerhana yang Terdeteksi")
+    for stage_name, ts, img_path in saved_images:
+        st.write(f"🕒 **{ts}** - {stage_name}")
+        st.image(img_path, caption=f"{stage_name} - {ts}", use_container_width=True)
         with open(img_path, "rb") as file:
             st.download_button(
-                label=f"💾 Download {cls} ({ts})",
+                label=f"💾 Download {stage_name} ({ts})",
                 data=file,
                 file_name=os.path.basename(img_path),
                 mime="image/jpeg"
             )
 
-    # =====================
-    # Kesimpulan Narasi
-    # =====================
     if saved_images:
-        target_stage_time = None
-        for cls, ts, _ in saved_images:
-            if cls == selected_stage:
-                target_stage_time = ts
-                break
-
-        first_cls, first_ts, _ = saved_images[0]
-        last_cls, last_ts, _ = saved_images[-1]
-
+        first_stage, first_ts, _ = saved_images[0]
+        last_stage, last_ts, _ = saved_images[-1]
         st.markdown("### 📌 Kesimpulan Deteksi")
-        if target_stage_time:
-            st.info(
-                f"Video dimulai dengan **{first_cls}** pada pukul **{first_ts}**. "
-                f"Tahapan **{selected_stage}** terdeteksi pada pukul **{target_stage_time}**. "
-                f"Video berakhir dengan **{last_cls}** pada pukul **{last_ts}**."
-            )
-        else:
-            st.warning(
-                f"Video dimulai dengan **{first_cls}** pada pukul **{first_ts}**, "
-                f"dan berakhir dengan **{last_cls}** pada pukul **{last_ts}**. "
-                f"Tahapan **{selected_stage}** tidak terdeteksi dalam video ini."
-            )
+        st.info(
+            f"Tahapan pertama yang terdeteksi adalah **{first_stage}** pada pukul **{first_ts}**, "
+            f"dan terakhir adalah **{last_stage}** pada pukul **{last_ts}**."
+        )
 
 else:
-    st.warning("Mohon upload video, masukkan waktu awal, dan pilih tahapan gerhana sebelum memulai deteksi.")
+    st.warning("Mohon upload video dan masukkan waktu awal sebelum memulai deteksi.")
