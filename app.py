@@ -102,12 +102,15 @@ if uploaded_video and start_time_str and selected_stage != "":
                     detection_time = start_time_delta + timedelta(seconds=seconds_passed)
                     detection_str = format_timestamp(detection_time)
 
-                    # Simpan frame
+                    # Simpan frame ke file untuk download
                     img_filename = f"{current_class.replace(' ', '_')}_{detection_str.replace(':', '-')}.jpg"
                     img_path = os.path.join(tempfile.gettempdir(), img_filename)
                     cv2.imwrite(img_path, frame)
-                    saved_images.append((current_class, detection_str, img_path))
 
+                    # Simpan versi RGB untuk display
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    saved_images.append((current_class, detection_str, img_path, frame_rgb))
                     prev_class = current_class
 
         frame_count += 1
@@ -119,9 +122,9 @@ if uploaded_video and start_time_str and selected_stage != "":
     st.success("Deteksi selesai!")
 
     st.write("### 📸 Gambar Tahapan Terdeteksi")
-    for cls, ts, img_path in saved_images:
+    for cls, ts, img_path, frame_rgb in saved_images:
         st.write(f"🕒 **{ts}** - Deteksi: **{cls}**")
-        st.image(img_path, caption=f"{cls} - {ts}", use_container_width=True)
+        st.image(frame_rgb, caption=f"{cls} - {ts}", use_container_width=True)
         with open(img_path, "rb") as file:
             st.download_button(
                 label=f"💾 Download {cls} ({ts})",
@@ -134,8 +137,8 @@ if uploaded_video and start_time_str and selected_stage != "":
     # Kesimpulan Narasi
     # =====================
     if saved_images:
-        first_cls, first_ts, _ = saved_images[0]
-        last_cls, last_ts, _ = saved_images[-1]
+        first_cls, first_ts, _, _ = saved_images[0]
+        last_cls, last_ts, _, _ = saved_images[-1]
 
         st.markdown("### 📌 Kesimpulan Deteksi")
         st.info(
