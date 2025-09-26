@@ -3,7 +3,11 @@ import tempfile
 import cv2
 from datetime import timedelta
 import os
+import torch
 from ultralytics import YOLO
+
+st.write("🔍 Torch version:", torch.__version__)
+st.write("🔍 Ultralytics version:", ultralytics.__version__)
 
 # =====================
 # Load model YOLO
