@@ -124,23 +124,23 @@ if uploaded_video and start_time_str and selected_stage != "":
 
     st.write("### 📸 Gambar Tahapan Terdeteksi")
     for cls, ts, img_path, frame_rgb in saved_images:
-    st.write(f"🕒 **{ts}** - Deteksi: **{cls}**")
+        st.write(f"🕒 **{ts}** - Deteksi: **{cls}**")
 
     # pastikan frame_rgb valid, lalu convert ke PIL
-    try:
-        pil_img = Image.fromarray(frame_rgb)
-        st.image(pil_img, caption=f"{cls} - {ts}", use_container_width=True)
-    except Exception as e:
-        st.warning(f"Gagal menampilkan gambar {cls} - {ts}: {e}")
+        try:
+            pil_img = Image.fromarray(frame_rgb)
+            st.image(pil_img, caption=f"{cls} - {ts}", use_container_width=True)
+        except Exception as e:
+            st.warning(f"Gagal menampilkan gambar {cls} - {ts}: {e}")
 
     # tetap sediakan file download
-    if os.path.exists(img_path):
-        with open(img_path, "rb") as file:
-            st.download_button(
-                label=f"💾 Download {cls} ({ts})",
-                data=file,
-                file_name=os.path.basename(img_path),
-                mime="image/jpeg"
+        if os.path.exists(img_path):
+            with open(img_path, "rb") as file:
+                st.download_button(
+                    label=f"💾 Download {cls} ({ts})",
+                    data=file,
+                    file_name=os.path.basename(img_path),
+                    mime="image/jpeg"
             )
 
     # =====================
